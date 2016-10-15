@@ -7,4 +7,4 @@ until [ -f /etc/pgbouncer/pgbouncer.ini ]; do
      sleep 1
 done
 
-/usr/bin/pgbouncer /etc/pgbouncer/pgbouncer.ini
+exec /usr/bin/pgbouncer /etc/pgbouncer/pgbouncer.ini
