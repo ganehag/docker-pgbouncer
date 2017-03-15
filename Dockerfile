@@ -1,6 +1,30 @@
-FROM alpine:latest
+FROM alpine:3.5
 
-RUN apk --no-cache add autoconf autoconf-doc automake c-ares c-ares-dev curl gcc libc-dev libevent libevent-dev libtool make man openssl-dev pkgconfig && \
+LABEL "maintainer" "mikael.brorrson@gmail.com"
+
+RUN apk --update --no-cache --virtual build-dependencies add \
+  autoconf \
+  autoconf-doc \
+  automake \
+  c-ares \
+  c-ares-dev \
+  curl \
+  gcc \
+  libc-dev \
+  libevent \
+  libevent-dev \
+  libtool \
+  make \
+  man \
+  openssl-dev \
+  pkgconfig \
+  && \
+  \
+  \
+  apk --no-cache add libevent c-ares libssl1.0 libcrypto1.0 && \
+  \
+  \
+  echo "=======> download source" && \
   curl -o  /tmp/pgbouncer-1.7.2.tar.gz -L https://pgbouncer.github.io/downloads/files/1.7.2/pgbouncer-1.7.2.tar.gz && \
   cd /tmp && \
   tar xvfz /tmp/pgbouncer-1.7.2.tar.gz && \
@@ -16,7 +40,7 @@ RUN apk --no-cache add autoconf autoconf-doc automake c-ares c-ares-dev curl gcc
   cd /tmp && \
   rm -rf /tmp/pgbouncer*  && \
   sed -i 's/logfile = \/var\/log\/pgbouncer\/pgbouncer.log/; logfile = \/var\/log\/pgbouncer\/pgbouncer.log/' /etc/pgbouncer/pgbouncer.ini && \
-  apk del --purge autoconf autoconf-doc automake c-ares-dev curl gcc libc-dev libevent-dev libtool make man openssl-dev pkgconfig && \
+  apk del --purge build-dependencies && \
   mkdir -p /var/log/pgbouncer && \
   mkdir -p /var/run/pgbouncer && \
   touch /var/log/pgbouncer/pgbouncer.log && \
@@ -24,7 +48,11 @@ RUN apk --no-cache add autoconf autoconf-doc automake c-ares c-ares-dev curl gcc
   chown -R pgbouncer /var/log/pgbouncer 
 
 ADD start.sh /start.sh
+
 USER pgbouncer
-VOLUME /etc/pgbouncer
+
+VOLUME ["/etc/pgbouncer" "/etc/ssl"]
+
 EXPOSE 6432
+
 CMD /start.sh
