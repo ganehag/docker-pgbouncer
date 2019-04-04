@@ -1,4 +1,6 @@
-FROM alpine:3.5
+FROM alpine:3.7
+
+ENV PGBOUNCER_VERSION 1.9.0
 
 LABEL "maintainer" "mikael.brorrson@gmail.com"
 
@@ -17,18 +19,17 @@ RUN apk --update --no-cache --virtual build-dependencies add \
   make \
   man \
   openssl-dev \
-  pkgconfig \
-  && \
-  \
-  \
-  apk --no-cache add libevent c-ares libssl1.0 libcrypto1.0 && \
+  pkgconfig
+
+RUN \
+  apk --no-cache add libevent c-ares libssl1.0 libcrypto1.0 tini && \
   \
   \
   echo "=======> download source" && \
-  curl -o  /tmp/pgbouncer-1.7.2.tar.gz -L https://pgbouncer.github.io/downloads/files/1.7.2/pgbouncer-1.7.2.tar.gz && \
+  curl -o  /tmp/pgbouncer-${PGBOUNCER_VERSION}.tar.gz -L https://pgbouncer.github.io/downloads/files/${PGBOUNCER_VERSION}/pgbouncer-${PGBOUNCER_VERSION}.tar.gz && \
   cd /tmp && \
-  tar xvfz /tmp/pgbouncer-1.7.2.tar.gz && \
-  cd pgbouncer-1.7.2 && \
+  tar xvfz /tmp/pgbouncer-${PGBOUNCER_VERSION}.tar.gz && \
+  cd pgbouncer-${PGBOUNCER_VERSION} && \
   ./configure --prefix=/usr && \
   make && \
   cp pgbouncer /usr/bin && \
@@ -53,6 +54,8 @@ USER pgbouncer
 
 VOLUME ["/etc/pgbouncer" "/etc/ssl"]
 
+ENTRYPOINT ["tini", "--"]
+
 EXPOSE 6432
 
-CMD /start.sh
+CMD ["/start.sh"]
