@@ -1,6 +1,6 @@
-FROM alpine:3.7
+FROM alpine:3.11
 
-ENV PGBOUNCER_VERSION 1.9.0
+ENV PGBOUNCER_VERSION 1.14.0
 
 LABEL "maintainer" "mikael.brorrson@gmail.com"
 
@@ -22,7 +22,7 @@ RUN apk --update --no-cache --virtual build-dependencies add \
   pkgconfig
 
 RUN \
-  apk --no-cache add libevent c-ares libssl1.0 libcrypto1.0 tini && \
+  apk --no-cache add libevent c-ares libssl1.1 libcrypto1.1 tini && \
   \
   \
   echo "=======> download source" && \
