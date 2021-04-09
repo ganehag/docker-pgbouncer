@@ -2,7 +2,7 @@ FROM alpine:3.11
 
 ENV PGBOUNCER_VERSION 1.14.0
 
-LABEL "maintainer" "mikael.brorrson@gmail.com"
+LABEL "maintainer" "mikael.brorsson@gmail.com"
 
 RUN apk --update --no-cache --virtual build-dependencies add \
   autoconf \
