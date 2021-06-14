@@ -1,61 +1,50 @@
-FROM alpine:3.11
+FROM alpine:3.11.11 AS builder
 
-ENV PGBOUNCER_VERSION 1.14.0
+ARG build_tag=pgbouncer_1_15_0
+ARG pandoc_tag=2.9.2.1
 
-LABEL "maintainer" "mikael.brorrson@gmail.com"
+RUN wget https://github.com/jgm/pandoc/releases/download/${pandoc_tag}/pandoc-${pandoc_tag}-linux-amd64.tar.gz
+RUN tar xvzf pandoc-${pandoc_tag}-linux-amd64.tar.gz --strip-components 1 -C /usr/local
 
-RUN apk --update --no-cache --virtual build-dependencies add \
-  autoconf \
-  autoconf-doc \
-  automake \
-  c-ares \
-  c-ares-dev \
-  curl \
-  gcc \
-  libc-dev \
-  libevent \
-  libevent-dev \
-  libtool \
-  make \
-  man \
-  openssl-dev \
-  pkgconfig
+RUN apk --no-cache add make pkgconfig autoconf automake libtool py-docutils git gcc g++ libevent-dev openssl-dev c-ares-dev ca-certificates
+RUN git clone --branch ${build_tag} --recurse-submodules -j8 https://github.com/pgbouncer/pgbouncer.git
 
-RUN \
-  apk --no-cache add libevent c-ares libssl1.1 libcrypto1.1 tini && \
-  \
-  \
-  echo "=======> download source" && \
-  curl -o  /tmp/pgbouncer-${PGBOUNCER_VERSION}.tar.gz -L https://pgbouncer.github.io/downloads/files/${PGBOUNCER_VERSION}/pgbouncer-${PGBOUNCER_VERSION}.tar.gz && \
-  cd /tmp && \
-  tar xvfz /tmp/pgbouncer-${PGBOUNCER_VERSION}.tar.gz && \
-  cd pgbouncer-${PGBOUNCER_VERSION} && \
-  ./configure --prefix=/usr && \
-  make && \
-  cp pgbouncer /usr/bin && \
-  mkdir -p /etc/pgbouncer /var/log/pgbouncer /var/run/pgbouncer && \
-  cp etc/pgbouncer.ini /etc/pgbouncer/ && \
-  cp etc/userlist.txt /etc/pgbouncer/ && \
-  adduser -D -S pgbouncer && \
-  chown pgbouncer /var/run/pgbouncer && \
-  cd /tmp && \
-  rm -rf /tmp/pgbouncer*  && \
-  sed -i 's/logfile = \/var\/log\/pgbouncer\/pgbouncer.log/; logfile = \/var\/log\/pgbouncer\/pgbouncer.log/' /etc/pgbouncer/pgbouncer.ini && \
-  apk del --purge build-dependencies && \
-  mkdir -p /var/log/pgbouncer && \
-  mkdir -p /var/run/pgbouncer && \
-  touch /var/log/pgbouncer/pgbouncer.log && \
-  chown -R pgbouncer /var/run/pgbouncer && \
-  chown -R pgbouncer /var/log/pgbouncer 
+WORKDIR pgbouncer
+
+RUN ./autogen.sh
+RUN ./configure --prefix=/usr
+RUN make
+RUN make install
+
+FROM alpine:3.11.11
+
+LABEL maintainer="mikael.brorrson@gmail.com"
+LABEL description="PgBouncer on Alpine Linux"
+
+RUN apk --no-cache add libevent openssl c-ares tini
 
 ADD start.sh /start.sh
+COPY --from=builder /usr/bin/pgbouncer /usr/bin/pgbouncer
+COPY --from=builder /pgbouncer/etc/pgbouncer.ini /etc/pgbouncer/pgbouncer.ini
+COPY --from=builder /pgbouncer/etc/userlist.txt /etc/pgbouncer/userlist.txt
 
-USER pgbouncer
+RUN \
+  mkdir /var/log/pgbouncer/ /var/run/pgbouncer/ && \
+  chown -R nobody:nobody /var/log/pgbouncer && \
+  chown -R nobody:nobody /var/run/pgbouncer
 
-VOLUME ["/etc/pgbouncer" "/etc/ssl"]
+# Healthcheck
+HEALTHCHECK --interval=10s --timeout=3s CMD stat /tmp/.s.PGSQL.*
+
+USER nobody
+
+# VOLUME ["/etc/pgbouncer" "/etc/ssl"]
 
 ENTRYPOINT ["tini", "--"]
 
 EXPOSE 6432
 
 CMD ["/start.sh"]
+
+# pgbouncer can't run as root, so let's drop to 'nobody' by default :)
+# ENTRYPOINT ["/pgbouncer/bin/pgbouncer", "-u", "nobody"]
